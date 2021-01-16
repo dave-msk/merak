@@ -58,6 +58,8 @@ setuptools.setup(
     ],
     packages=setuptools.find_packages(include=("merak", "merak.*",),
                                       exclude=()),
+    include_package_data=True,
+    package_data={"merak": ["data/*"]},
     entry_points={
         "console_scripts": [
             "merak = merak.main:main",
