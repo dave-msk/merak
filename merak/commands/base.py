@@ -94,6 +94,7 @@ class Command(object):
     verbose = min(contr.app.pargs.verbose, 2)
     level = [logging.WARNING, logging.INFO, logging.DEBUG][verbose]
     logger = logging.getLogger("merak")
+    logger.propagate = False
     log_fmt = "%(asctime)s (%(levelname)s) %(name)s : %(message)s"
 
     if contr.app.pargs.color:
