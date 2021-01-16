@@ -1,0 +1,25 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+import os
+
+import setuptools
+from Cython.Build import cythonize
+
+PACKAGE_NAME = "{package}"
+
+
+def get_source_files(top):
+  return [os.path.join(r, f) for r, _, fs in os.walk(top)
+          for f in fs if os.path.splitext(f)[-1] in {".py", ".pyx"}]
+
+
+setuptools.setup(
+    name=PACKAGE_NAME,
+    packages=setuptools.find_packages(),
+    ext_modules=cythonize(setuptools.Extension(
+        name="%s.__init__" % PACKAGE_NAME,
+        sources=get_source_files(PACKAGE_NAME),
+        extra_compile_args=["-DCYTHON_PEP489_MULTI_PHASE_INIT=0"]),
+        compiler_directives={{"language_level": "3"}}))
