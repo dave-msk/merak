@@ -63,20 +63,18 @@ def build_package_cython_extension(package_root,
     # 2.2. Inject finder to package `__init__` file
     #   If `__init__.py` and `__init__.pyx` both exists, `__init__.pyx`
     #   takes precedence.
-    logger.info("2.2. Injecting finder to main `__init__` file ...")
-    package_init_pyx = os.path.join(tmp_proot, "__init__.pyx")
-    package_init_py = os.path.join(tmp_proot, "__init__.py")
-    package_init = None
-    if os.path.isfile(package_init_pyx):
-      package_init = package_init_pyx
-    elif os.path.isfile(package_init_py):
-      package_init = package_init_py
-    if package_init:
+    logger.info("2.2. Injecting finder to main `__init__` ...")
+
+    # 2.2.1. Inject finder logic to the beginning of `__init__.pyx`
+    package_init = os.path.join(tmp_proot, "__init__.pyx")
+    if os.path.isfile(package_init):
       with open(package_init, "r") as fin:
         init_content = _inject_finder(fin, package, subpkgs, sep)
     else:
       init_content = _inject_finder([], package, subpkgs, sep)
-    with open(package_init_pyx, "w") as fout:
+
+    # 2.2.2. Write content to `__init__.pyx`
+    with open(package_init, "w") as fout:
       fout.write(init_content)
     logger.info("2.2. Done!")
 
@@ -112,6 +110,7 @@ def _analyze_structure(relative_paths, sep):
   init_suffix_len = len(init_suffix)
   subpkgs = set()
   renames = {}
+  duplicated = []
 
   for p in relative_paths:
     name, ext = os.path.splitext(p)
@@ -120,10 +119,16 @@ def _analyze_structure(relative_paths, sep):
     if dst.endswith(init_suffix):
       dst = dst[:-init_suffix_len].rstrip(os.path.sep)
       subpkgs.add(name.replace(os.path.sep, ".")[:-9])
-    dst += ext
+    dst += ".pyx"
     if dst in renames:
-      raise ValueError()  # Collision occurred
-    renames[dst] = p
+      # Duplicated module, both ".pyx" and ".py" exist
+      duplicated.append((renames[dst], p))
+    else:
+      renames[dst] = p
+
+  if duplicated:
+    raise ModuleConflictError("Duplicated modules detected: {}"
+                              .format(duplicated))
 
   return renames, subpkgs
 
@@ -150,3 +155,7 @@ def _inject_finder(code_lines, package, subpackages, sep):
           sep=sep))
     ss.write(content)
     return ss.getvalue()
+
+
+class ModuleConflictError(Exception):
+  pass
