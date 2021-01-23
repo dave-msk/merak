@@ -18,7 +18,7 @@ To upgrade Merak to the latest version, add `--upgrade` flag to the above comman
 
 ## Usage
 
-Currently, Merak only supports the `cythonize` command for building binary externaion from a Python package. More features and functionalities may be added in the future.
+Currently, Merak only supports the `cythonize` command for building binary extension from a Python package. More features and functionalities may be added in the future.
 
 To build a binary extension from a Python package:
 
@@ -47,7 +47,7 @@ optional arguments:
 
 ## Example
 
-An example package `foo` is included in the `tests/` directory. It consists of one subpackage `bar` with a module `baz` containing a function `do()` in it.
+An example package `foo` is included in the `examples/` directory. It consists of one subpackage `bar` with a module `baz` containing a function `do()` in it.
 
 To build the `foo` package, run the following command in the project root:
 
