@@ -66,6 +66,28 @@ Running: foo.bar.baz.do()
 
 The deprecation warning seems to originate from the import logic in the compiled `__init__` extension by Cython. It should cause no execution problems at all.
 
+The binary package can be built into a Python distribution via `setuptools` by simply adding a `setup.py` in the output directory that includes the cython extension. For this example, add `setup.py` to `foo-build/` with the following content:
+
+```python
+import setuptools
+
+setuptools.setup(
+    name="foo",
+    version="0.1.0",
+    packages=["foo"],
+    include_package_data=True,
+    package_data={"foo": ["*"]},
+)
+```
+
+and run
+
+```sh
+$ python setup.py bdist_wheel
+```
+
+The distribution can be found at `foo-build/dist/`.
+
 ## Idea
 
 Based on [this answer](https://stackoverflow.com/a/52714500/14927788), it appears that it is possible to build a single Cython extension with multiple modules included in it.
