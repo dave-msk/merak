@@ -66,7 +66,7 @@ Running: foo.bar.baz.do()
 
 The deprecation warning seems to originate from the import logic in the compiled `__init__` extension by Cython. It should cause no execution problems at all.
 
-The binary package can be built into a Python distribution via `setuptools` by simply adding a `setup.py` in the output directory that includes the cython extension. For this example, add `setup.py` to `foo-build/` with the following content:
+The binary package can be built into a Python distribution via `setuptools` by simply adding a `setup.py` in the output directory that includes the cython extension as package data. For this example, add `setup.py` to `foo-build/` with the following content:
 
 ```python
 import setuptools
