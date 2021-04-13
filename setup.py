@@ -26,7 +26,7 @@ with open("requirements.txt", "r") as fin:
 
 setuptools.setup(
     name="merak",
-    version="0.1.0",
+    version="0.1.1",
     author="(David) Siu-Kei Muk",
     author_email="david.muk@protonmail.com",
     license="Apache 2.0",
@@ -34,7 +34,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/dave-msk/merak",
-    download_url="https://github.com/dave-msk/merak/archive/v0.1.0.tar.gz",
+    download_url="https://github.com/dave-msk/merak/archive/v0.1.1.tar.gz",
     keywords=["merak", "cython", "binary", "package", "build"],
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -46,7 +46,6 @@ setuptools.setup(
         "Programming Language :: Python :: 2",
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
@@ -66,5 +65,5 @@ setuptools.setup(
         ],
     },
     install_requires=requirements,
-    python_requires=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4",
+    python_requires=">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4",
 )
