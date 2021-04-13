@@ -26,7 +26,7 @@ def run(*popenargs, **kwargs):
 
   kwargs["stdout"] = subprocess.PIPE
   kwargs["stderr"] = subprocess.PIPE
-  kwargs["text"] = True
+  kwargs["universal_newlines"] = True
 
   with subprocess.Popen(*popenargs, **kwargs) as process:
     debug_log_piper = LogPiper(logger.debug, process.stdout)
