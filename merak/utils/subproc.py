@@ -30,9 +30,9 @@ def run(*popenargs, **kwargs):
 
   with subprocess.Popen(*popenargs, **kwargs) as process:
     debug_log_piper = LogPiper(logger.debug, process.stdout)
-    warning_log_piper = LogPiper(logger.warning, process.stderr)
+    error_log_piper = LogPiper(logger.error, process.stderr)
     debug_log_piper.start()
-    warning_log_piper.start()
+    error_log_piper.start()
 
     retcode = process.wait()
 
