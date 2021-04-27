@@ -20,13 +20,20 @@ import io
 import logging
 import os
 import shutil
+import subprocess
 import tempfile
 import uuid
 
+from rope.base import project as rope_project
+from rope.base import change as rope_change
+from rope.refactor import move as rope_move
+from rope.refactor import rename as rope_rename
+
 from merak.utils import refs
+from merak.utils import rope_util
 from merak.utils import subproc
 
-SUFFIXES = {".py", ".pyx"}
+SUFFIXES = {".py"}
 
 
 def build_package_cython_extension(package_root,
@@ -35,52 +42,42 @@ def build_package_cython_extension(package_root,
                                    sep="_"):
   logger = logging.getLogger(__name__)
   # 0. Create temporary directory
-  with tempfile.TemporaryDirectory() as tmpdir:
+  with tempfile.TemporaryDirectory() as tmp_dir:
     # 1. Copy package to temp dir
     logger.info("1. Copying package to temporary directory ...")
     package = os.path.basename(package_root)
-    tmp_proot = os.path.join(tmpdir, package)
-    tmp_pr_len = len(tmp_proot)
+    tmp_proot = os.path.join(tmp_dir, package)
     shutil.copytree(package_root, tmp_proot)
     logging.info("1. Done!")
 
     # 2. Restructure package (in temp dir)
     logger.info("2. Restructuring package ...")
-    # 2.1. Restructure package
-    # 2.1.1. Get rename and subpackage information
-    logger.info("2.1. Renaming Python modules ...")
-    rel_paths = (os.path.join(r, f)[tmp_pr_len:].lstrip(os.path.sep)
-                 for r, _, fs in os.walk(tmp_proot) for f in fs)
-    renames, subpkgs = _analyze_structure(rel_paths, sep)
+    # 2.1. Modify package
+    # 2.1.1. Restructure package and get modules and
+    logger.info("2.1. Restructuring Python modules ...")
+    mods, sub_pkgs = _restructure_package(tmp_proot, sep=sep)
 
-    # 2.1.2. Flatten files
-    for dst, src in renames.items():
-      if dst == src: continue
-      shutil.move(os.path.join(tmp_proot, src),
-                  os.path.join(tmp_proot, dst))
     logger.info("2.1. Done!")
 
     # 2.2. Inject finder to package `__init__` file
-    #   If `__init__.py` and `__init__.pyx` both exists, `__init__.pyx`
-    #   takes precedence.
     logger.info("2.2. Injecting finder to main `__init__` ...")
 
-    # 2.2.1. Inject finder logic to the beginning of `__init__.pyx`
-    package_init = os.path.join(tmp_proot, "__init__.pyx")
+    # 2.2.1. Inject finder logic to the beginning of `__init__.py`
+    package_init = os.path.join(tmp_proot, "__init__.py")
     if os.path.isfile(package_init):
       with open(package_init, "r") as fin:
-        init_content = _inject_finder(fin, package, subpkgs, sep)
+        init_content = _inject_finder(fin, package, mods, sub_pkgs, sep)
     else:
-      init_content = _inject_finder([], package, subpkgs, sep)
+      init_content = _inject_finder([], package, mods, sub_pkgs, sep)
 
-    # 2.2.2. Write content to `__init__.pyx`
+    # 2.2.2. Write content to `__init__.py`
     with open(package_init, "w") as fout:
       fout.write(init_content)
     logger.info("2.2. Done!")
 
     # 3. Add setup file
     logger.info("3. Adding Cython setup file ...")
-    with open(os.path.join(tmpdir, "setup.py"), "w") as fout:
+    with open(os.path.join(tmp_dir, "setup.py"), "w") as fout:
       with open(refs.Template.PY_SETUP, "r") as fin:
         fout.write(fin.read().format(package=package))
     logger.info("3. Done!")
@@ -89,9 +86,16 @@ def build_package_cython_extension(package_root,
     logger.info("4. Compiling package binary ...")
     cy_tmp = "cy_tmp_%s" % uuid.uuid4()
     cy_build = "cy_build_%s" % uuid.uuid4()
-    subproc.run(
+    result = subproc.run(
         ["python", "setup.py", "build_ext", "-b", cy_build, "-t", cy_tmp],
-        cwd=tmpdir)
+        cwd=tmp_dir)
+
+    try:
+      result.check_returncode()
+    except subprocess.CalledProcessError:
+      logger.error("Failed to compile package!")
+      return
+
     logger.info("4. Done!")
 
     # 5. Copy build result to destination
@@ -100,40 +104,12 @@ def build_package_cython_extension(package_root,
     target = os.path.join(output_dir, package)
     if force and os.path.exists(target):
       shutil.rmtree(target) if os.path.isdir(target) else os.remove(target)
-    shutil.copytree(os.path.join(tmpdir, cy_build, package),
+    shutil.copytree(os.path.join(tmp_dir, cy_build, package),
                     os.path.join(output_dir, package))
     logger.info("5. Done!")
 
 
-def _analyze_structure(relative_paths, sep):
-  init_suffix = "%s__init__" % sep
-  init_suffix_len = len(init_suffix)
-  subpkgs = set()
-  renames = {}
-  duplicated = []
-
-  for p in relative_paths:
-    name, ext = os.path.splitext(p)
-    if ext not in SUFFIXES: continue
-    dst = name.replace(os.path.sep, sep)
-    if dst.endswith(init_suffix):
-      dst = dst[:-init_suffix_len].rstrip(os.path.sep)
-      subpkgs.add(name.replace(os.path.sep, ".")[:-9])
-    dst += ".pyx"
-    if dst in renames:
-      # Duplicated module, both ".pyx" and ".py" exist
-      duplicated.append((renames[dst], p))
-    else:
-      renames[dst] = p
-
-  if duplicated:
-    raise ModuleConflictError("Duplicated modules detected: {}"
-                              .format(duplicated))
-
-  return renames, subpkgs
-
-
-def _inject_finder(code_lines, package, subpackages, sep):
+def _inject_finder(code_lines, package, modules, subpackages, sep):
   tops = []
   if code_lines:
     with io.StringIO() as ss:
@@ -143,19 +119,89 @@ def _inject_finder(code_lines, package, subpackages, sep):
   else:
     content = ""
 
-  subpkgs = "{%s}" % ", ".join(
-      "'%s.%s'" % (package, sp) for sp in sorted(subpackages))
-
   with io.StringIO() as ss:
     if tops: [ss.write(l) for l in tops + ["\n", "\n"]]
     with open(refs.Template.PY_INIT, "r") as fin:
       ss.write(fin.read().format(
           package=package,
-          subpackages=subpkgs,
+          modules=modules,
+          subpackages=subpackages,
           sep=sep))
     ss.write(content)
     return ss.getvalue()
 
 
-class ModuleConflictError(Exception):
-  pass
+def _restructure_package(package_path, sep="_"):
+  package_path = os.path.abspath(package_path)
+
+  pkg_name = os.path.basename(package_path)
+  offset = len(pkg_name) + len(os.path.sep)
+  pkg_root = package_path[:-offset]
+
+  project = rope_project.Project(pkg_root)
+  pkg_rsrc = project.get_folder(pkg_name)
+  spd_fct = rope_util.SubPathDetailFactory(offset=offset)
+
+  extra_imps = {}
+  sub_pkgs = []
+  mods = []
+
+  # 1st pass: Rename and move modules
+  for r in sorted(project.get_python_files(),
+                  key=rope_util.key_by_depth_and_mod,
+                  reverse=True):
+    path = r.path
+    if not path.startswith(pkg_name): continue
+    spd = spd_fct(r)
+    if spd.fullname == "__init__": continue
+    if spd.name == "__init__":
+      sub_pkgs.append(
+          "%s.%s" % (pkg_name, spd.fullname.replace(os.path.sep, ".")[:-9]))
+      src = r.real_path
+      dirname = os.path.dirname(src)
+      dst = dirname + spd.ext
+      shutil.move(src, dst)
+      assert not os.listdir(dirname)
+      os.rmdir(dirname)
+
+      r = project.get_file(os.path.dirname(path) + spd.ext)
+      spd = spd_fct(r)
+
+    target = "___" + spd.fullname.replace(os.path.sep, sep)
+    mods.append("%s.%s" % (pkg_name, target))
+    extra_imps[target] = (
+        "from {} import {} as {}".format(pkg_name, target, spd.name))
+
+    rename = rope_rename.Rename(project, r)
+    rename_cs = rename.get_changes(target)
+    rename_cs.changes = [c for c in rename_cs.changes
+                         if not (isinstance(c, rope_change.ChangeContents)
+                                 and c.resource == r)]
+    project.do(rename_cs)
+
+    if spd.at_root: continue
+
+    r = project.get_file(os.path.join(os.path.dirname(path), target + spd.ext))
+    move = rope_move.create_move(project, r)
+    move_cs = move.get_changes(pkg_rsrc)
+    move_cs.changes = [c for c in move_cs.changes
+                       if not (isinstance(c, rope_change.ChangeContents)
+                               and c.resource == r)]
+    project.do(move_cs)
+
+  # 2nd pass: Add imports with original aliases
+  matcher = rope_util.SubpackageImportNameMatcher(pkg_name)
+  for r in project.get_python_files():
+    sio = io.StringIO()
+    for line in r.read().split(os.linesep):
+      sio.write(line)
+      sio.write(os.linesep)
+
+      for name in matcher.match(line):
+        if name in extra_imps:
+          sio.write(extra_imps[name])
+          sio.write(os.linesep)
+
+    r.write(sio.getvalue())
+
+  return mods, sub_pkgs

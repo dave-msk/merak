@@ -1,24 +1,23 @@
-def __bootstrap(pkg_name, pkg_set=None, sep="_"):
+def __bootstrap(pkg_name, modules, pkg_set=None, sep="_"):
   import copy as _copy
   from importlib import abc as _imp_abc
   from importlib import machinery as _imp_mac
   from importlib import util as _imp_util
   import sys as _sys
 
+  modules = set(modules)
+
   def _rename(name, sep="_"):
+    if name in modules: return name
     idx = name.find(".")
-    return name if idx == -1 else name[:idx+1] + name[idx+1:].replace(".", sep)
+    if idx == -1: return name
+    return "%s___%s" % (name[:idx+1], name[idx+1:].replace(".", sep))
 
   class _ExtensionLoader(_imp_mac.ExtensionFileLoader):
     def __init__(self, name, path, is_package=False, sep="_"):
       super(_ExtensionLoader, self).__init__(name, path)
       self._sep = sep
       self._is_package = is_package
-
-    def create_module(self, spec):
-      s = _copy.copy(spec)
-      s.name = _rename(s.name, sep=self._sep)
-      return super(_ExtensionLoader, self).create_module(s)
 
     def is_package(self, fullname):
       return self._is_package
@@ -48,15 +47,19 @@ def __bootstrap(pkg_name, pkg_set=None, sep="_"):
       if fullname.startswith(self._prefix):
         name = _rename(fullname, sep=self._sep)
         is_package = fullname in self._packages
-        loader = _ExtensionLoader(name, __file__, is_package=is_package)
-        return _imp_util.spec_from_loader(
-            name, loader, origin=__file__, is_package=is_package)
+        search = [__file__] if is_package else None
+        loader = _ExtensionLoader(
+            name, __file__, is_package=is_package, sep=self._sep)
+        spec = _imp_util.spec_from_file_location(
+            name, loader=loader, submodule_search_locations=search)
+
+        return spec
 
   # injecting custom finder/loaders into sys.meta_path:
   finder = _CythonPackageMetaPathFinder(pkg_name, packages=pkg_set, sep=sep)
   if finder not in _sys.meta_path: _sys.meta_path.append(finder)
 
 
-__bootstrap("{package}", {subpackages}, "{sep}")
+__bootstrap("{package}", {modules}, {subpackages}, "{sep}")
 
 

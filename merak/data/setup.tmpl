@@ -12,7 +12,7 @@ PACKAGE_NAME = "{package}"
 
 def get_source_files(dirname):
   return [os.path.join(dirname, f) for f in os.listdir(dirname)
-          if f.endswith(".pyx")]
+          if f.endswith(".py")]
 
 
 setuptools.setup(
