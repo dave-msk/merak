@@ -33,6 +33,8 @@ from merak.utils import refs
 from merak.utils import rope_util
 from merak.utils import subproc
 
+import pprint
+
 SUFFIXES = {".py"}
 
 
@@ -43,6 +45,7 @@ def build_package_cython_extension(package_root,
   logger = logging.getLogger(__name__)
   # 0. Create temporary directory
   with tempfile.TemporaryDirectory() as tmp_dir:
+    tmp_dir = "./test-build"
     # 1. Copy package to temp dir
     logger.info("1. Copying package to temporary directory ...")
     package = os.path.basename(package_root)
@@ -147,6 +150,9 @@ def _restructure_package(package_path, sep="_"):
   mods = []
 
   # 1st pass: Rename and move modules
+  pprint.pprint([r.path for r in sorted(project.get_python_files(),
+                key=rope_util.key_by_depth_and_mod,
+                reverse=True)])
   for r in sorted(project.get_python_files(),
                   key=rope_util.key_by_depth_and_mod,
                   reverse=True):
@@ -155,39 +161,33 @@ def _restructure_package(package_path, sep="_"):
     spd = spd_fct(r)
     if spd.fullname == "__init__": continue
     if spd.name == "__init__":
-      sub_pkgs.append(
-          "%s.%s" % (pkg_name, spd.fullname.replace(os.path.sep, ".")[:-9]))
-      src = r.real_path
-      dirname = os.path.dirname(src)
-      dst = dirname + spd.ext
-      shutil.move(src, dst)
-      assert not os.listdir(dirname)
-      os.rmdir(dirname)
-
-      r = project.get_file(os.path.dirname(path) + spd.ext)
+      r = r.parent
       spd = spd_fct(r)
 
-    target = "___" + spd.fullname.replace(os.path.sep, sep)
-    mods.append("%s.%s" % (pkg_name, target))
-    extra_imps[target] = (
-        "from {} import {} as {}".format(pkg_name, target, spd.name))
+    rn_target = "___" + spd.fullname.replace(os.path.sep, sep)
+    mods.append("%s.%s" % (pkg_name, rn_target))
+    extra_imps[rn_target] = (
+        "from {} import {} as {}".format(pkg_name, rn_target, spd.name))
 
     rename = rope_rename.Rename(project, r)
-    rename_cs = rename.get_changes(target)
+    rename_cs = rename.get_changes(rn_target)
     rename_cs.changes = [c for c in rename_cs.changes
                          if not (isinstance(c, rope_change.ChangeContents)
                                  and c.resource == r)]
     project.do(rename_cs)
 
-    if spd.at_root: continue
+    if not spd.at_root:
 
-    r = project.get_file(os.path.join(os.path.dirname(path), target + spd.ext))
-    move = rope_move.create_move(project, r)
-    move_cs = move.get_changes(pkg_rsrc)
-    move_cs.changes = [c for c in move_cs.changes
-                       if not (isinstance(c, rope_change.ChangeContents)
-                               and c.resource == r)]
-    project.do(move_cs)
+      r = project.get_resource(
+          os.path.join(os.path.dirname(r.path), rn_target + spd.ext))
+      move = rope_move.create_move(project, r)
+      move_cs = move.get_changes(pkg_rsrc)
+      project.do(move_cs)
+
+    if r.is_folder():
+      dirname = os.path.join(package_path, rn_target)
+      shutil.move(os.path.join(dirname, "__init__.py"), dirname + ".py")
+      shutil.rmtree(dirname)
 
   # 2nd pass: Add imports with original aliases
   matcher = rope_util.SubpackageImportNameMatcher(pkg_name)
