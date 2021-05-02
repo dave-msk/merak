@@ -33,8 +33,6 @@ from merak.utils import refs
 from merak.utils import rope_util
 from merak.utils import subproc
 
-import pprint
-
 SUFFIXES = {".py"}
 
 
@@ -45,7 +43,6 @@ def build_package_cython_extension(package_root,
   logger = logging.getLogger(__name__)
   # 0. Create temporary directory
   with tempfile.TemporaryDirectory() as tmp_dir:
-    tmp_dir = "./test-build"
     # 1. Copy package to temp dir
     logger.info("1. Copying package to temporary directory ...")
     package = os.path.basename(package_root)
@@ -150,9 +147,6 @@ def _restructure_package(package_path, sep="_"):
   mods = []
 
   # 1st pass: Rename and move modules
-  pprint.pprint([r.path for r in sorted(project.get_python_files(),
-                key=rope_util.key_by_depth_and_mod,
-                reverse=True)])
   for r in sorted(project.get_python_files(),
                   key=rope_util.key_by_depth_and_mod,
                   reverse=True):
