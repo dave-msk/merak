@@ -46,11 +46,13 @@ class CythonizeCommand(base.Command):
     args = contr.app.pargs
 
     logger.info("Building binary package ...")
-    cybuild.build_package_cython_extension(args.path.rstrip(os.path.sep),
-                                           args.output,
-                                           force=args.force,
-                                           sep=args.sep)
-    logger.info("Binary package built successfully!")
+    success = cybuild.build_package_cython_extension(
+        args.path.rstrip(os.path.sep),
+        args.output,
+        force=args.force,
+        sep=args.sep)
+    if success:
+      logger.info("Binary package built successfully!")
 
 
 class Cythonize(base.Controller):
