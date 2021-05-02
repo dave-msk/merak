@@ -94,7 +94,7 @@ def build_package_cython_extension(package_root,
       result.check_returncode()
     except subprocess.CalledProcessError:
       logger.error("Failed to compile package!")
-      return
+      return False
 
     logger.info("4. Done!")
 
@@ -107,6 +107,7 @@ def build_package_cython_extension(package_root,
     shutil.copytree(os.path.join(tmp_dir, cy_build, package),
                     os.path.join(output_dir, package))
     logger.info("5. Done!")
+    return True
 
 
 def _inject_finder(code_lines, package, modules, subpackages, sep):
@@ -154,14 +155,17 @@ def _restructure_package(package_path, sep="_"):
     if not path.startswith(pkg_name): continue
     spd = spd_fct(r)
     if spd.fullname == "__init__": continue
-    if spd.name == "__init__":
+    is_package = spd.name == "__init__"
+    if is_package:
       r = r.parent
       spd = spd_fct(r)
       sub_pkgs.append(
           "%s.%s" % (pkg_name, spd.fullname.replace(os.path.sep, ".")))
 
     rn_target = "___" + spd.fullname.replace(os.path.sep, sep)
-    mods.append("%s.%s" % (pkg_name, rn_target))
+    mod_name = "%s.%s" % (pkg_name, rn_target)
+    mods.append(mod_name)
+    if is_package: sub_pkgs.append(mod_name)
     extra_imps[rn_target] = (
         "from {} import {} as {}".format(pkg_name, rn_target, spd.name))
 
