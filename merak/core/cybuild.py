@@ -157,6 +157,8 @@ def _restructure_package(package_path, sep="_"):
     if spd.name == "__init__":
       r = r.parent
       spd = spd_fct(r)
+      sub_pkgs.append(
+          "%s.%s" % (pkg_name, spd.fullname.replace(os.path.sep, ".")))
 
     rn_target = "___" + spd.fullname.replace(os.path.sep, sep)
     mods.append("%s.%s" % (pkg_name, rn_target))
