@@ -87,9 +87,10 @@ def build_package_cython_extension(package_root,
     logger.info("4. Compiling package binary ...")
     cy_tmp = "cy_tmp_%s" % uuid.uuid4()
     cy_build = "cy_build_%s" % uuid.uuid4()
-    result = subproc.run(
-        [py_cmd, "setup.py", "build_ext", "-b", cy_build, "-t", cy_tmp],
-        cwd=tmp_dir)
+    command = [py_cmd, "setup.py", "build_ext", "-b", cy_build, "-t", cy_tmp]
+    logger.debug("Running command \"{}\" from directory \"{}\" ..."
+                 .format(command, tmp_dir))
+    result = subproc.run(command, cwd=tmp_dir)
 
     try:
       result.check_returncode()
