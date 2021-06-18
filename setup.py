@@ -26,7 +26,7 @@ with open("requirements.txt", "r") as fin:
 
 setuptools.setup(
     name="merak",
-    version="0.2.2",
+    version="0.2.3",
     author="(David) Siu-Kei Muk",
     author_email="david.muk@protonmail.com",
     license="Apache 2.0",
