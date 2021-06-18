@@ -39,7 +39,8 @@ SUFFIXES = {".py"}
 def build_package_cython_extension(package_root,
                                    output_dir,
                                    force=False,
-                                   sep="_"):
+                                   sep="_",
+                                   py_cmd="python"):
   logger = logging.getLogger(__name__)
   # 0. Create temporary directory
   with tempfile.TemporaryDirectory() as tmp_dir:
@@ -87,7 +88,7 @@ def build_package_cython_extension(package_root,
     cy_tmp = "cy_tmp_%s" % uuid.uuid4()
     cy_build = "cy_build_%s" % uuid.uuid4()
     result = subproc.run(
-        ["python", "setup.py", "build_ext", "-b", cy_build, "-t", cy_tmp],
+        [py_cmd, "setup.py", "build_ext", "-b", cy_build, "-t", cy_tmp],
         cwd=tmp_dir)
 
     try:

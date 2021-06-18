@@ -39,6 +39,14 @@ class CythonizeCommand(base.Command):
                dict(action="store_true",
                     default=False,
                     help="Force overwrite if target path exists"))
+  arg_pycmd = (["--py-cmd"],
+               dict(type=str,
+                    default=os.environ.get("PYTHON_CMD", "python"),
+                    dest="py_cmd",
+                    help="Python interpreter to be used for building Cython "
+                         "package. Defaults to value of environment variable "
+                         "\"PYTHON_CMD\", or \"python\" if \"PYTHON_CMD\" not "
+                         "specified."))
 
   def __call__(self, contr):
     super(CythonizeCommand, self).__call__(contr)
@@ -50,7 +58,8 @@ class CythonizeCommand(base.Command):
         args.path.rstrip(os.path.sep),
         args.output,
         force=args.force,
-        sep=args.sep)
+        sep=args.sep,
+        py_cmd=args.py_cmd)
     if success:
       logger.info("Binary package built successfully!")
 
