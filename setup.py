@@ -24,9 +24,11 @@ with open("README.md", "r") as fh:
 with open("requirements.txt", "r") as fin:
   requirements = [line.strip() for line in fin]
 
+VERSION = "0.2.3"
+
 setuptools.setup(
     name="merak",
-    version="0.2.3",
+    version=VERSION,
     author="(David) Siu-Kei Muk",
     author_email="david.muk@protonmail.com",
     license="Apache 2.0",
@@ -34,7 +36,8 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/dave-msk/merak",
-    download_url="https://github.com/dave-msk/merak/archive/v0.2.2.tar.gz",
+    download_url="https://github.com/dave-msk/merak/archive/v{}.tar.gz"
+                 .format(VERSION),
     keywords=["merak", "cython", "binary", "package", "build"],
     classifiers=[
         "Development Status :: 4 - Beta",
