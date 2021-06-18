@@ -43,6 +43,9 @@ optional arguments:
   -s SEP, --sep SEP  Module layer separator, must be Python identifier.
                      Defaults to '_'
   -f, --force        Force overwrite if target path exists
+  --py-cmd PY_CMD    Python interpreter to be used for building Cython
+                     package. Defaults to value of environment variable
+                     "PYTHON_CMD", or "python" if "PYTHON_CMD" not specified.
 ```
 
 ## Example
