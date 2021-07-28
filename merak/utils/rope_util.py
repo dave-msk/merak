@@ -6,6 +6,9 @@ import os
 import re
 
 
+SEP = "/"
+
+
 class SubpackageImportNameMatcher(object):
   def __init__(self, package_name):
     py_id = "[a-zA-Z_][a-zA-Z0-9_]*"
@@ -47,7 +50,7 @@ class SubPathDetail(object):
 
   @property
   def at_root(self):
-    return os.path.sep not in self._fullname
+    return SEP not in self._fullname
 
 
 def key_by_depth_and_mod(pyfile_resource):
@@ -56,4 +59,4 @@ def key_by_depth_and_mod(pyfile_resource):
   basename = os.path.basename(path)
   name, _ = os.path.splitext(basename)
   init_flag = 0 if name == "__init__" else 1
-  return path.count(os.path.sep), dirname, init_flag, basename
+  return path.count(SEP), dirname, init_flag, basename

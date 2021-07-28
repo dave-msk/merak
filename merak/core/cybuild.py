@@ -162,9 +162,9 @@ def _restructure_package(package_path, sep="_"):
       r = r.parent
       spd = spd_fct(r)
       sub_pkgs.append(
-          "%s.%s" % (pkg_name, spd.fullname.replace(os.path.sep, ".")))
+          "%s.%s" % (pkg_name, spd.fullname.replace(rope_util.SEP, ".")))
 
-    rn_target = "___" + spd.fullname.replace(os.path.sep, sep)
+    rn_target = "___" + spd.fullname.replace(rope_util.SEP, sep)
     mod_name = "%s.%s" % (pkg_name, rn_target)
     mods.append(mod_name)
     if is_package: sub_pkgs.append(mod_name)
