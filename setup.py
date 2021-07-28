@@ -24,7 +24,7 @@ with open("README.md", "r") as fh:
 with open("requirements.txt", "r") as fin:
   requirements = [line.strip() for line in fin]
 
-VERSION = "0.2.3"
+VERSION = "0.2.4"
 
 setuptools.setup(
     name="merak",
