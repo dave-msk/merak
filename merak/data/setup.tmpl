@@ -7,6 +7,14 @@ import os
 import setuptools
 from Cython.Build import cythonize
 
+
+from distutils.command.build_ext import build_ext
+def get_export_symbols_fixed(self, ext):
+  pass  # return [] also does the job!
+
+# replace wrong version with the fixed:
+build_ext.get_export_symbols = get_export_symbols_fixed
+
 PACKAGE_NAME = "{package}"
 
 

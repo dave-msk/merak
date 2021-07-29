@@ -181,7 +181,7 @@ def _restructure_package(package_path, sep="_"):
     if not spd.at_root:
 
       r = project.get_resource(
-          os.path.join(os.path.dirname(r.path), rn_target + spd.ext))
+          rope_util.SEP.join([os.path.dirname(r.path), rn_target + spd.ext]))
       move = rope_move.create_move(project, r)
       move_cs = move.get_changes(pkg_rsrc)
       project.do(move_cs)
