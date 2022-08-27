@@ -16,6 +16,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import glob
 import io
 import logging
 import os
@@ -24,6 +25,7 @@ import subprocess
 import tempfile
 import uuid
 
+import absolufy_imports as abs_imp
 from rope.base import project as rope_project
 from rope.base import change as rope_change
 from rope.refactor import move as rope_move
@@ -44,15 +46,28 @@ def build_package_cython_extension(package_root,
   logger = logging.getLogger(__name__)
   # 0. Create temporary directory
   with tempfile.TemporaryDirectory() as tmp_dir:
+    # ---------------------------
     # 1. Copy package to temp dir
+    # ---------------------------
     logger.info("1. Copying package to temporary directory ...")
     package = os.path.basename(package_root)
     tmp_proot = os.path.join(tmp_dir, package)
     shutil.copytree(package_root, tmp_proot)
     logging.info("1. Done!")
 
+    # ------------------------------------
     # 2. Restructure package (in temp dir)
+    # ------------------------------------
     logger.info("2. Restructuring package ...")
+
+    # 2.0. Transform imports to absolute
+    logger.info("2.0. Transforming imports to absolute ...")
+    srcs = [tmp_dir]
+    for suffix in SUFFIXES:
+      for f in glob.glob(os.path.join(tmp_proot, "**/*%s" % suffix)):
+        abs_imp.absolute_imports(f, srcs, never=False)
+    logger.info("2.0. Done!")
+
     # 2.1. Modify package
     # 2.1.1. Restructure package and get modules and
     logger.info("2.1. Restructuring Python modules ...")
@@ -76,14 +91,18 @@ def build_package_cython_extension(package_root,
       fout.write(init_content)
     logger.info("2.2. Done!")
 
+    # -----------------
     # 3. Add setup file
+    # -----------------
     logger.info("3. Adding Cython setup file ...")
     with open(os.path.join(tmp_dir, "setup.py"), "w") as fout:
       with open(refs.Template.PY_SETUP, "r") as fin:
         fout.write(fin.read().format(package=package))
     logger.info("3. Done!")
 
+    # ----------
     # 4. Compile
+    # ----------
     logger.info("4. Compiling package binary ...")
     cy_tmp = "cy_tmp_%s" % uuid.uuid4()
     cy_build = "cy_build_%s" % uuid.uuid4()
@@ -100,7 +119,9 @@ def build_package_cython_extension(package_root,
 
     logger.info("4. Done!")
 
+    # -----------------------------------
     # 5. Copy build result to destination
+    # -----------------------------------
     logger.info("5. Copying result to destination ...")
     os.makedirs(output_dir, exist_ok=True)
     target = os.path.join(output_dir, package)
