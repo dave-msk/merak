@@ -30,4 +30,4 @@ setuptools.setup(
         name="%s.__init__" % PACKAGE_NAME,
         sources=get_source_files(PACKAGE_NAME),
         extra_compile_args=["-DCYTHON_PEP489_MULTI_PHASE_INIT=0"]),
-        compiler_directives={{"language_level": "3"}}))
+        compiler_directives={{ "language_level": "3", "always_allow_keywords": True }}))
