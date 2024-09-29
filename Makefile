@@ -1,11 +1,11 @@
-all: dev
+all: clean build
 
-build: clean
-	python setup.py bdist_wheel
-
-dev: clean
-	python setup.py develop
+build:
+	python -m build -w
 
 clean:
-	pip uninstall merak -y
-	rm -rf build dist merak.egg-info
+	rm -rf build/ dist/ merak.egg-info/
+
+install:
+	pip install setuptools build
+	pip install .
