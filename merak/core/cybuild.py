@@ -20,6 +20,7 @@ import glob
 import io
 import logging
 import os
+import pathlib
 import shutil
 import subprocess
 import tempfile
@@ -51,6 +52,7 @@ def build_package_cython_extension(package_root,
     # ---------------------------
     logger.info("1. Copying package to temporary directory ...")
     package = os.path.basename(package_root)
+    tmp_dir = str(pathlib.Path(tmp_dir).resolve())  # Resolve real path
     tmp_proot = os.path.join(tmp_dir, package)
     shutil.copytree(package_root, tmp_proot)
     logging.info("1. Done!")
