@@ -1,4 +1,4 @@
-# Copyright 2021 (David) Siu-Kei Muk. All Rights Reserved.
+# Copyright 2024 (David) Siu-Kei Muk. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ from __future__ import print_function
 
 import pathlib
 
-from merak import metadata
+PACKAGE_ROOT = pathlib.Path(__file__).resolve().parent
 
 
 class _AttrPathDict(dict):
@@ -31,11 +31,12 @@ class _AttrPathDict(dict):
     self._root = root
 
   def __setitem__(self, key, value):
-    if isinstance(value, str):
-      value = (value,)
-    if isinstance(value, (list, tuple)):
-      value = pathlib.PurePath(*value)
-    value = self._root.joinpath(value)
+    if key.isupper():
+      if isinstance(value, str):
+        value = (value,)
+      if isinstance(value, (list, tuple)):
+        value = pathlib.PurePath(*value)
+      value = self._root.joinpath(value)
     super(_AttrPathDict, self).__setitem__(key, value)
 
 
@@ -46,7 +47,7 @@ def _PackageDataMeta(path):
       origin = super(_Meta, _Meta).__prepare__(metacls=metacls,
                                                __name=name,
                                                __bases=bases)
-      dict_ = _AttrPathDict(metadata.PACKAGE_ROOT.joinpath(path))
+      dict_ = _AttrPathDict(PACKAGE_ROOT.joinpath(path))
       if origin: dict_.update(origin)
       return dict_
   return _Meta
