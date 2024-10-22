@@ -1,3 +1,17 @@
+# Copyright 2024 (David) Siu-Kei Muk. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -30,6 +44,20 @@ class ModuleContext(base.MerakBase):
 
 
 class Transform(base.MerakBase):
+  """Source tramsform function.
+
+  This class is the abstraction of the function: Source -> [Source...].
+  It takes a single source and returns a list of sources that replaces
+  the input in a Rewrite.
+
+  Each descendant must implement the `_transform` method where the `source`
+  argument is guaranteed to be a `Source` instance. The method can return
+  None, a single `Source`, or a list of `Source`s. If None is returned by
+  `_transform`, the input parameter is returned to the function caller
+
+  The instantiation of a Transform requires a `ModuleContext` (`ctx`) which
+  contains information of the module that the transform is working on.
+  """
   def __init__(self, ctx):
     errors.typecheck(ctx, ModuleContext, arg_name="ctx")
     self._ctx = ctx
@@ -48,6 +76,11 @@ class Transform(base.MerakBase):
 
 
 class ImportTransform(Transform):
+  """Base class of Transforms that works on `Import`
+
+  The core method is `_transform_import`, where the input is guaranteed
+  to be an `Import`.
+  """
   def _transform(self, source):
     if not isinstance(source, ast_.Import): return
     return self._transform_import(source)
@@ -57,6 +90,24 @@ class ImportTransform(Transform):
 
 
 class ImportSplitter(ImportTransform):
+  """Split imports into one alias per statement.
+
+  This transform splits a multi-name import statement into multiple
+  single name ones. For example:
+
+  ```py
+  # Input
+  from a import b, c as cn, d
+  import x.y, w.u.v
+
+  # Output
+  from a import b
+  from a import c as cn
+  from a import d
+  import x.y
+  import w.u.v
+  ```
+  """
   def _transform_import(self, source):
     names = source.names
     if len(names) == 1: return
@@ -68,6 +119,19 @@ class ImportSplitter(ImportTransform):
 
 
 class ImportAbsolufier(ImportTransform):
+  """Convert relative imports into absolute ones
+
+  This transform converts relative imports into absolute import statements.
+  For instance:
+
+  ```py
+  # Input (In module a.b.c)
+  from ..e.f import g
+
+  # Output
+  from a.e.f import g
+  ```
+  """
   def _transform_import(self, source):
     target = source.from_
     if target is None or not target.startswith("."): return
