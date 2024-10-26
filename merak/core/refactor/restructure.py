@@ -178,9 +178,10 @@ class PackageRestructurer(base.MerakBase):
     return module
 
   def _construct_path(self, module):
+    # TODO: Investigate how to determine if a restructured mod path is a package
     mod = self._get_restructured_path(module)
-    if len(mod) == 1:
-      return pathlib.PurePath(mod[0], "__init__")
+    if self._index.is_package(mod):
+      return pathlib.PurePath(*mod, "__init__")
     return pathlib.PurePath(*mod)
 
   def _construct_text(self, mod):
@@ -317,6 +318,11 @@ class ModuleIndex(base.MerakBase):
 
   def itermodules(self):
     yield from self.modules.items()
+
+  def is_package(self, module):
+    mod = misc.split_module(module)
+    if mod not in self.modules: return False
+    return self.modules[mod].stem == "__init__"
 
   def __contains__(self, key):
     if isinstance(key, str):
