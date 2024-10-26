@@ -1,4 +1,4 @@
-# Copyright 2021 (David) Siu-Kei Muk. All Rights Reserved.
+# Copyright 2024 (David) Siu-Kei Muk. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,36 +16,40 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
+import pathlib
+
+PACKAGE_ROOT = pathlib.Path(__file__).resolve().parent
 
 
-def _get_lib_root():
-  root = os.path.join(os.path.dirname(__file__), "..")
-  return os.path.abspath(root)
-
-
-class _PrefixPathDict(dict):
-  def __init__(self, prefix):
-    super(_PrefixPathDict, self).__init__()
-    self._prefix = prefix
+class _AttrPathDict(dict):
+  def __init__(self, root):
+    super(_AttrPathDict, self).__init__()
+    if isinstance(root, str):
+      root = pathlib.Path(root).resolve()
+    if not isinstance(root, pathlib.Path):
+      raise TypeError()
+    self._root = root
 
   def __setitem__(self, key, value):
-    if isinstance(value, str):
-      value = os.path.join(self._prefix, value)
-    super(_PrefixPathDict, self).__setitem__(key, value)
+    if key.isupper():
+      if isinstance(value, str):
+        value = (value,)
+      if isinstance(value, (list, tuple)):
+        value = pathlib.PurePath(*value)
+      value = self._root.joinpath(value)
+    super(_AttrPathDict, self).__setitem__(key, value)
 
 
-def _PackageDataMeta(prefix):
+def _PackageDataMeta(path):
   class _Meta(type):
     @classmethod
     def __prepare__(metacls, name, bases):
       origin = super(_Meta, _Meta).__prepare__(metacls=metacls,
                                                __name=name,
                                                __bases=bases)
-      pfx_path_dict = _PrefixPathDict(
-          os.path.join(_get_lib_root(), prefix))
-      if origin: pfx_path_dict.update(origin)
-      return pfx_path_dict
+      dict_ = _AttrPathDict(PACKAGE_ROOT.joinpath(path))
+      if origin: dict_.update(origin)
+      return dict_
   return _Meta
 
 
