@@ -74,7 +74,6 @@ class CythonBuilder(base.MerakBase):
 
     with tempfile.TemporaryDirectory() as tmpdir:
       tmpdir = misc.resolve(tmpdir)
-      tmpdir = misc.resolve("./debug")
 
       # 1. Save modules to tmpdir
       self._pkg_rs.save_modules(tmpdir)
