@@ -42,6 +42,10 @@ class ModuleContext(base.MerakBase):
   def index(self):
     return self._index
 
+  @property
+  def is_package(self):
+    return self._index.is_package(self._path)
+
 
 class Transform(base.MerakBase):
   """Source tramsform function.
@@ -139,6 +143,7 @@ class ImportAbsolufier(ImportTransform):
     from_ = list(self._ctx.path)
     target_path = target.split(".")
     if not target_path[-1]: target_path.pop()
+    if self._ctx.is_package: target_path.pop(0)
 
     for m in target_path:
       if not m:
