@@ -55,16 +55,6 @@ def lock(fn):
   return locked_fn
 
 
-def walk(root, exts):
-  for root_, _, files in os.walk(root):
-    for f in files:
-      _, ext = os.path.splitext(f)
-      if ext in exts:
-        file = os.path.join(root, f)
-        print("File: {}, {}".format(os.path.isfile(file), file))
-        yield os.path.join(root_, f)
-
-
 def gen_var():
   return "_merak_import_var_{}".format(uuid.uuid4().hex)
 

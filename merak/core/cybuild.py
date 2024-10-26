@@ -39,9 +39,14 @@ class CythonBuilder(base.MerakBase):
 
   @misc.lock
   def _process_package(self):
-    self._logger.info("Started restructuring package")
+    self._logger.info("[Refactor] Started restructuring package ...")
+    self._logger.info("[Refactor] Split imports")
     self._pkg_rs.split_imports()
+
+    self._logger.info("[Refactor] Absolufy imports")
     self._pkg_rs.absolufy_imports()
+
+    self._logger.info("[Refactor] Restructure modules")
     self._pkg_rs.restructure_modules(
         refactor.ModuleFlattenFn(sep=self._sep, prefix="___"))
 
@@ -49,6 +54,8 @@ class CythonBuilder(base.MerakBase):
     self._logger.debug("Modules: [{}]".format(", ".join(self._pkg_rs.modules)))
     self._logger.debug(
         "Subpackages: [{}]".format(", ".join(self._pkg_rs.subpackages)))
+
+    self._logger.info("[Refactor] Inject finder into __init__")
     finder_code = datalib.Template.PY_INIT.read_text().format(
         package=self._pkg_rs.package,
         modules=self._pkg_rs.modules,
@@ -56,6 +63,7 @@ class CythonBuilder(base.MerakBase):
         sep=self._sep)
     self._pkg_rs.inject_code(self._pkg_rs.package, finder_code)
     self._processed = True
+    self._logger.info("[Refactor] Done")
 
   def build(self, output, py_cmd="python", force=False):
     output = misc.resolve(output)
@@ -66,6 +74,7 @@ class CythonBuilder(base.MerakBase):
 
     with tempfile.TemporaryDirectory() as tmpdir:
       tmpdir = misc.resolve(tmpdir)
+      tmpdir = misc.resolve("./debug")
 
       # 1. Save modules to tmpdir
       self._pkg_rs.save_modules(tmpdir)

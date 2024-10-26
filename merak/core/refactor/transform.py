@@ -137,7 +137,10 @@ class ImportAbsolufier(ImportTransform):
     if target is None or not target.startswith("."): return
 
     from_ = list(self._ctx.path)
-    for m in target.split("."):
+    target_path = target.split(".")
+    if not target_path[-1]: target_path.pop()
+
+    for m in target_path:
       if not m:
         if not from_: return
         from_.pop()

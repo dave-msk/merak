@@ -37,7 +37,7 @@ class Rewrite(base.MerakBase):
   """
   def __init__(self, lineno, end_lineno=0, col_offset=0):
     self._start = lineno
-    self._end = end_lineno if end_lineno > lineno else lineno+1
+    self._end = max(end_lineno, lineno)
     self._offset = col_offset
     self._srcs = []
 
@@ -61,8 +61,8 @@ class Rewrite(base.MerakBase):
 
   @property
   def text(self):
-    return "{}{}\n".format(" " * self._offset,
-                           "\n".join(s.text for s in self._srcs))
+    indent = " " * self._offset
+    return "".join("{}{}\n".format(indent, s.text) for s in self._srcs)
 
   @property
   def start(self):

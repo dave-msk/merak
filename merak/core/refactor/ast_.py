@@ -98,7 +98,7 @@ class Import(Source):
     errors.typecheck(node, (ast.Import, ast.ImportFrom), arg_name="node")
     if isinstance(node, ast.Import):
       return cls(node.names)
-    return cls(node.names, from_="." * node.level + node.module)
+    return cls(node.names, from_="." * node.level + (node.module or ""))
 
   @classmethod
   def simple(cls, name, from_=None, as_=None):

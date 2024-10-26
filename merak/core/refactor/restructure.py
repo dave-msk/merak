@@ -33,6 +33,17 @@ from merak.utils import misc
 
 
 class PackageRestructurer(base.MerakBase):
+  """Restructures a Python package
+
+  Package is first indexed as modules, subpackages and package data, according
+  to the following criteria:
+
+    - Module: File with extension specified by `exts`
+    - Subpackage: File named `__init__` with extension specified by `exts`
+    - Package data: All other files
+
+
+  """
   _FROM_FUTURE_RE = re.compile(r"^from\s+__future__\s+import.*")
 
   def __init__(self, package_root, exts):
@@ -48,13 +59,13 @@ class PackageRestructurer(base.MerakBase):
 
   @property
   def modules(self):
-    """Set of all modules under package.
-    """
+    """Set of all modules under package."""
     return {".".join(self._get_restructured_path(m))
             for m in self._index if len(m) > 1}
 
   @property
   def subpackages(self):
+    """Set of all subpackages under package."""
     return {".".join(m) for m, p in self._index.itermodules()
             if p.stem == "__init__"}
 
@@ -63,23 +74,39 @@ class PackageRestructurer(base.MerakBase):
     return self._root.stem
 
   def inject_code(self, module, code):
+    """Injects code to beginning of module"""
     self._code_injections[misc.split_module(module)] = code
 
   def split_imports(self):
+    """Split imports into one name per statement"""
     self._transform(misc.FnCaller(transform.ImportSplitter))
 
   def absolufy_imports(self):
+    """Make all import paths absolute"""
     self._transform(misc.FnCaller(transform.ImportAbsolufier))
 
   def restructure_modules(self, fn):
+    """Restructure modules via ModuleFn
+
+    Args:
+      fn: `ModuleFn`, redefines module path
+    """
     errors.typecheck(fn, ModuleFn, arg_name="fn")
     self._mod_fns.append(fn)
-    caller = misc.FnCaller(ImportMover)
+    caller = misc.FnCaller(ImportModuleMover)
     caller.fn = fn
     self._transform(caller)
 
-  def save_modules(self, root=None):
-    root = misc.resolve(root) if root else self._root.parent
+  def save_modules(self, dest=None):
+    """Save updated modules
+
+    This method only save source files. For package data, use `save_data`.
+
+    Args:
+      dest: Destination directory. If not specified, the original package
+        location is used.
+    """
+    dest = misc.resolve(dest) if dest else self._root.parent
     file_to_mod = {}
     conflicts = collections.defaultdict(list)
 
@@ -101,21 +128,42 @@ class PackageRestructurer(base.MerakBase):
 
     # Save modules
     for rpath, mod in file_to_mod.items():
-      path = root.joinpath(rpath)
+      path = dest.joinpath(rpath)
       path.parent.mkdir(exist_ok=True, parents=True)
       path.write_text(self._construct_text(mod))
 
-  def save_data(self, root):
-    root = misc.resolve(root)
-    if root == self._root.parent:
-      # TODO: Add log message
+  def save_data(self, dest):
+    """Save package data
+
+    This method copies package data (i.e. non-source files) to destination.
+    If destination is the same as parent of package root directory, no
+    operation will be performed.
+
+    Args:
+      dest: Destination directory
+    """
+    dest = misc.resolve(dest)
+    if dest == self._root.parent:
+      self._logger.warning(
+          "Destination same as data source. Package data copy skipped")
       return
     for rdst, src in self._index.iterdata():
-      dst = root.joinpath(rdst)
+      dst = dest.joinpath(rdst)
       dst.parent.mkdir(exist_ok=True, parents=True)
       shutil.copy2(str(src), str(dst))
 
   def read(self, module):
+    """Read module source code
+
+    The input is expected to be the import path of the target module in one of
+    the following form:
+
+      - String: "foo.a.b.c"
+      - Split: ("foo", "a", "b", "c")
+
+    Args:
+      module: Module path, in string or split form
+    """
     m = misc.split_module(module)
     return self._editors[m].text
 
@@ -153,9 +201,15 @@ class PackageRestructurer(base.MerakBase):
       sio.write("".join(editor_lines))
       return sio.getvalue()
 
-class ImportMover(transform.ImportTransform):
+class ImportModuleMover(transform.ImportTransform):
+  """Rewrite import statements with moved modules
+
+  This class takes a ModuleFn that accepts a module path and returns a
+  new one in split format. Only absolute imports with target within the package
+  (determined by context) are transformed. A
+  """
   def __init__(self, ctx, fn):
-    super(ImportMover, self).__init__(ctx)
+    super(ImportModuleMover, self).__init__(ctx)
     errors.typecheck(fn, ModuleFlattenFn)
     self._fn = fn
 
@@ -213,6 +267,15 @@ class ImportMover(transform.ImportTransform):
 
 
 class ModuleIndex(base.MerakBase):
+  """Index of modules within a package
+
+  The index mainly holds the following mapping:
+
+    -   key: Absolute module path in split form. e.g.: ("foo", "a", "b")
+    - value: `pathlib.Path` of module file
+
+  The index also caches paths of package data (non-module files) under the root
+  """
   def __init__(self, root, exts):
     self._root = misc.resolve(root)
     self._exts = set(exts)
@@ -274,6 +337,17 @@ class ModuleIndex(base.MerakBase):
 
 
 class ModuleFn(base.MerakBase):
+  """Redefine module location
+
+  The module function is responsible for redefining a module's location.
+  It accepts a module path, either in string or tuple/list (e.g. `"foo.a.b"`,
+  `("foo", "a", "b")`), and returns a module path in the split (i.e. tuple/list)
+  form.
+
+  The core method is `_move` where the input is guaranteed to be a module path
+  in the split form. If None is returned, the input is returned in the split
+  form.
+  """
   def _move(self, module):
     return
 
@@ -286,7 +360,7 @@ class ModuleFn(base.MerakBase):
       raise TypeError()
     if any(m == "" for m in mod) or len(mod) < 2: return module
     dest = self._move(mod)
-    if not dest: return module
+    if not dest: return mod
     if (not isinstance(dest, (tuple, list))
         or not all(isinstance(s, str) for s in dest)):
       raise TypeError()
@@ -294,6 +368,11 @@ class ModuleFn(base.MerakBase):
 
 
 class ModuleFlattenFn(ModuleFn):
+  """Flattens module paths
+
+  Suppose a module has an absolute path "foo.a.b.c", with `sep="_"` and
+  `prefix="___"` set, the resulting path would be "foo.___a_b_c"
+  """
   def __init__(self, sep="_", prefix="___"):
     self._sep = sep
     self._prefix = prefix
@@ -305,6 +384,12 @@ class ModuleFlattenFn(ModuleFn):
 
 
 class Editor(base.MerakBase):
+  """Abstraction of loaded Python source file.
+
+  This class is an abstraction of loaded Python source files. All import
+  statements are extracted as rewrite items for transformations. The resulting
+  text can be generated via the `Editor.text` property.
+  """
   def __init__(self, file):
     self._file = misc.resolve(file)
     self._plan = None
@@ -320,7 +405,7 @@ class Editor(base.MerakBase):
         rw = None
       for lineno, line in enumerate(self._orig_text.splitlines(keepends=True),
                                     start=1):
-        if rw and lineno >= rw.end:
+        if rw and lineno > rw.end:
           try:
             rw = next(it)
           except StopIteration:
@@ -359,6 +444,7 @@ class Editor(base.MerakBase):
 
 
 class ImportCollectionVisitor(rewrite.RewritePlanVisitor):
+  """Collects all import nodes in a module as rewrite items"""
   def _add_import(self, node):
     rw = rewrite.Rewrite.from_node(node)
     rw.add(ast_.Import.from_node(node))

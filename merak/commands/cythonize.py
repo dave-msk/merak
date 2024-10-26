@@ -27,7 +27,7 @@ class CythonizeCommand(base.Command):
   """Build binary Python package with Cython."""
   __command__ = "cythonize"
 
-  arg_path = (["path"],
+  arg_path = (["package"],
               dict(help="Python package path"))
   arg_output = (["output"],
                 dict(help="Output directory"))
@@ -54,7 +54,7 @@ class CythonizeCommand(base.Command):
     args = contr.app.pargs
 
     logger.info("Building binary package ...")
-    builder = cybuild.CythonBuilder(args.path, {".py"},sep=args.sep)
+    builder = cybuild.CythonBuilder(args.package, {".py"}, sep=args.sep)
     try:
       builder.build(args.output, py_cmd=args.py_cmd, force=args.force)
     except Exception:
