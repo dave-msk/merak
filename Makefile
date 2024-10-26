@@ -8,4 +8,4 @@ clean:
 
 install:
 	pip install setuptools build
-	pip install .
+	pip install -r requirements.txt
