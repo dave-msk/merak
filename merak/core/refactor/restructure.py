@@ -202,6 +202,7 @@ class PackageRestructurer(base.MerakBase):
       sio.write("".join(editor_lines))
       return sio.getvalue()
 
+
 class ImportModuleMover(transform.ImportTransform):
   """Rewrite import statements with moved modules
 
@@ -227,17 +228,7 @@ class ImportModuleMover(transform.ImportTransform):
       if parts not in self._ctx.index:
         srcs.append(ast_.Import(alias))
         continue
-
-      no_as = alias.asname is None
-      as_ = misc.gen_var() if no_as else alias.asname
-
-      srcs.append(ast_.Import.simple(parts[0], as_=alias.asname))
-      for i in range(len(parts) - 1):
-        srcs.append(self._import(self._fn(parts[:i+2]), as_=as_))
-        if no_as:
-          srcs.append(ast_.Assign(".".join(parts[:i+2]), as_))
-      if no_as:
-        srcs.append(ast_.Delete(as_))
+      srcs.extend(self._import_series(parts, pkg_as=parts[0], as_=alias.asname))
     return srcs
 
   def _process_import_from(self, source):
@@ -245,26 +236,39 @@ class ImportModuleMover(transform.ImportTransform):
     parts = source.from_.split(".")
     if parts not in self._ctx.index: return
 
-    srcs = []
+    pkg_as = misc.gen_var()
+    srcs = self._import_series(parts, pkg_as=pkg_as)
+
     for alias in source.names:
       as_ = alias.asname or alias.name
-
-      for i in range(len(parts)-1):
-        srcs.append(self._import(self._fn(parts[:i+2]), as_=as_))
-
-      full_mod = tuple(parts + [alias.name])
+      full_mod = (*parts, alias.name)
       if full_mod in self._ctx.index:
+        # Target is a module
         srcs.append(self._import(self._fn(full_mod), as_=as_))
+        srcs.append(ast_.Assign(".".join((pkg_as, *full_mod[1:])), as_))
       else:
+        # Target is an attribute
         srcs.append(ast_.Import.simple(
             alias.name,
             from_=".".join(self._fn(parts)),
             as_=alias.asname))
+    srcs.append(ast_.Delete(pkg_as))
     return srcs
 
   def _import(self, mod, as_=None):
     from_ = None if len(mod) == 1 else ".".join(mod[:-1])
     return ast_.Import.simple(mod[-1], from_=from_, as_=as_)
+
+  def _import_series(self, mod, pkg_as=None, as_=None):
+    parts = misc.split_module(mod)
+    no_as = as_ is None
+    as_ = as_ or misc.gen_var()
+    srcs = [ast_.Import.simple(parts[0], as_=pkg_as)]
+    for i in range(len(parts)-1):
+      srcs.append(self._import(self._fn(parts[:i+2]), as_=as_))
+      srcs.append(ast_.Assign(".".join((pkg_as, *parts[1:i+2])), as_))
+    if no_as and len(parts) > 1: srcs.append(ast_.Delete(as_))
+    return srcs
 
 
 class ModuleIndex(base.MerakBase):
