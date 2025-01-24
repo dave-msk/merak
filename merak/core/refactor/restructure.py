@@ -19,6 +19,7 @@ from __future__ import print_function
 import ast
 import collections
 import io
+import os
 import pathlib
 import re
 import shutil
@@ -298,9 +299,9 @@ class ModuleIndex(base.MerakBase):
     # mod: ("mod", "path", "in", "tuple") -> fullpath
     # data: {data fullpath}
     mod, data = {}, set()
-    for r, _, fs in self._root.walk():
+    for r, _, fs in os.walk(str(self._root)):
       for f in fs:
-        path = r.joinpath(f)
+        path = pathlib.Path(r).joinpath(f)
         if path.suffix in self._exts:
           mod[self.to_module(path)] = path
         else:
